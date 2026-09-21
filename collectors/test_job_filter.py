@@ -80,7 +80,7 @@ def test_old_job_is_removed():
     assert stats["too_old"] == 1
 
 
-def test_unknown_location_is_not_kept():
+def test_non_nl_location_is_not_kept():
     job = JobFixture(
         job_title="Business Operations Specialist",
         location="Somewhere Unknown",
@@ -90,4 +90,4 @@ def test_unknown_location_is_not_kept():
     filtered, stats = filter_jobs([job])
 
     assert len(filtered) == 0
-    assert stats["unknown_location"] == 1
+    assert stats["wrong_location"] == 1

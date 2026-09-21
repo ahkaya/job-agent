@@ -2,6 +2,8 @@ import re
 import unicodedata
 
 
+# Dutch municipalities / commonly used Dutch city names.
+# The list intentionally includes commonly encountered job-location names.
 NL_CITIES = {
     "alkmaar",
     "almelo",
@@ -12,12 +14,19 @@ NL_CITIES = {
     "apeldoorn",
     "arnhem",
     "assen",
+    "bergen op zoom",
+    "beverwijk",
+    "boxtel",
     "breda",
+    "capelle aan den ijssel",
     "delft",
+    "den bosch",
     "deventer",
     "doetinchem",
     "dordrecht",
     "eindhoven",
+    "emmen",
+    "enkhuizen",
     "enschede",
     "geleen",
     "goes",
@@ -25,23 +34,31 @@ NL_CITIES = {
     "groningen",
     "haarlem",
     "harderwijk",
+    "heerhugowaard",
     "heerlen",
     "helmond",
     "hengelo",
     "hilversum",
     "hoofddorp",
     "hoorn",
+    "huizen",
+    "kampen",
+    "kerkrade",
     "leeuwarden",
     "leiden",
     "lelystad",
     "maastricht",
+    "meppel",
     "middelburg",
+    "nieuwegein",
     "nijmegen",
+    "oosterhout",
     "oss",
+    "purmerend",
     "roermond",
     "roosendaal",
     "rotterdam",
-    "s-hertogenbosch",
+    "s hertogenbosch",
     "schiedam",
     "sittard",
     "spijkenisse",
@@ -88,64 +105,6 @@ NL_COUNTRY_TERMS = {
 }
 
 
-NON_NL_COUNTRIES = {
-    "argentina",
-    "australia",
-    "austria",
-    "belgium",
-    "brazil",
-    "bulgaria",
-    "canada",
-    "chile",
-    "china",
-    "croatia",
-    "czech republic",
-    "czechia",
-    "denmark",
-    "estonia",
-    "finland",
-    "france",
-    "germany",
-    "greece",
-    "hungary",
-    "india",
-    "ireland",
-    "israel",
-    "italy",
-    "japan",
-    "latvia",
-    "lithuania",
-    "luxembourg",
-    "malaysia",
-    "mexico",
-    "new zealand",
-    "norway",
-    "philippines",
-    "poland",
-    "portugal",
-    "romania",
-    "serbia",
-    "singapore",
-    "slovakia",
-    "slovenia",
-    "south africa",
-    "south korea",
-    "spain",
-    "sweden",
-    "switzerland",
-    "taiwan",
-    "thailand",
-    "united kingdom",
-    "united states",
-    "usa",
-    "us",
-    "u k",
-    "uk",
-    "u s",
-    "u s a",
-}
-
-
 REMOTE_TERMS = {
     "remote",
     "fully remote",
@@ -155,34 +114,12 @@ REMOTE_TERMS = {
 }
 
 
-REGIONAL_TERMS = {
-    "apac",
-    "asia",
-    "asia pacific",
-    "benelux",
-    "emea",
-    "europe",
-    "european union",
-    "eu",
-    "latin america",
-    "latam",
-    "north america",
-    "northern europe",
-    "southern europe",
-    "western europe",
-}
-
-
 def normalize(text):
     text = unicodedata.normalize(
         "NFKC",
         str(text or ""),
     ).lower()
 
-    # Location values arrive with inconsistent separators, such as
-    # "Amsterdam / Hybrid", "Amsterdam, NL", and "U.S.A.".
-    # Convert separators to spaces so country and place terms can be
-    # matched consistently with word boundaries.
     text = re.sub(
         r"[^\w]+",
         " ",
@@ -207,83 +144,49 @@ def classify_location(location):
     Classify a job location for the Netherlands job search.
 
     CONFIRMED_NL:
-        Clearly identifiable Dutch location.
+        Explicit Dutch country, province, or city signal.
 
     NOT_NL:
-        Clearly outside the Netherlands or explicitly remote.
+        Remote, empty, or no Dutch location signal.
 
-    REGIONAL_AMBIGUOUS:
-        Regional/multi-country location that cannot safely
-        be treated as a Dutch physical/hybrid position.
-
-    UNKNOWN:
-        Location exists but cannot be classified confidently.
+    The collector intentionally does not attempt to identify every
+    foreign city or country. For this job search, absence of a
+    reliable Dutch location signal is sufficient to exclude the job.
     """
 
     text = normalize(location)
 
-    if not text:
-        return "UNKNOWN"
-
-    # ---------------------------------------------------------
-    # 1. Remote jobs are ALWAYS excluded.
-    # ---------------------------------------------------------
-
+    # Remote jobs are always excluded.
     if any(
         contains_term(text, term)
         for term in REMOTE_TERMS
     ):
         return "NOT_NL"
 
-    # ---------------------------------------------------------
-    # 2. Explicit country and regional detection.
-    #
-    # A country signal is more reliable than a city name. We deliberately
-    # do not maintain a worldwide city list: many city names are ambiguous,
-    # and an unverified foreign city should remain UNKNOWN.
-    # ---------------------------------------------------------
-
-    nl_country_match = any(
-        contains_term(text, country)
-        for country in NL_COUNTRY_TERMS
-    )
-
-    foreign_country_match = any(
-        contains_term(text, country)
-        for country in NON_NL_COUNTRIES
-    )
-
-    regional_match = any(
-        contains_term(text, term)
-        for term in REGIONAL_TERMS
-    )
-
-    if regional_match or (
-        nl_country_match and foreign_country_match
-    ):
-        return "REGIONAL_AMBIGUOUS"
-
-    if foreign_country_match:
+    # Empty / placeholder locations are excluded.
+    if not text or text in {"n a", "na", "location", "tbd"}:
         return "NOT_NL"
 
-    # ---------------------------------------------------------
-    # 3. Dutch country / city / province detection.
-    # ---------------------------------------------------------
-
-    if nl_country_match:
+    # Explicit Netherlands signal.
+    if any(
+        contains_term(text, country)
+        for country in NL_COUNTRY_TERMS
+    ):
         return "CONFIRMED_NL"
 
+    # Dutch city / municipality signal.
     if any(
         contains_term(text, city)
         for city in NL_CITIES
-    ) or any(
+    ):
+        return "CONFIRMED_NL"
+
+    # Dutch province signal.
+    if any(
         contains_term(text, province)
         for province in NL_PROVINCES
     ):
         return "CONFIRMED_NL"
 
-    # ---------------------------------------------------------
-    # 4. Unknown.
-    # ---------------------------------------------------------
-
-    return "UNKNOWN"
+    # Everything else is outside the target scope.
+    return "NOT_NL"
