@@ -7,3 +7,6 @@ __pycache__/
 
 # Local database
 /data/jobs.db
+
+# Local database
+/data/jobs.db
