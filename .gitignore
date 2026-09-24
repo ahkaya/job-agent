@@ -54,3 +54,9 @@ data/glm_ab_results*.json
 
 # App backups
 *.backup_*
+
+# GCP credentials
+config/gcp_service_account.json
+
+# Streamlit skills
+.agents/

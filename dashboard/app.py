@@ -82,6 +82,29 @@ with st.sidebar:
 
     _btn(f"✍️ Manuel İlan ({n_manual})", "nav_manual", "✍️ Manuel İlan")
 
+    st.divider()
+
+    # Yanit istatistikleri
+    conn_y = get_connection()
+    try:
+        n_responses = conn_y.execute("SELECT COUNT(*) FROM application_emails").fetchone()[0]
+        n_interview = conn_y.execute("SELECT COUNT(*) FROM application_emails WHERE category = 'interview'").fetchone()[0]
+        n_rejection = conn_y.execute("SELECT COUNT(*) FROM application_emails WHERE category = 'rejection'").fetchone()[0]
+        n_offer = conn_y.execute("SELECT COUNT(*) FROM application_emails WHERE category = 'offer'").fetchone()[0]
+    except Exception:
+        n_responses = n_interview = n_rejection = n_offer = 0
+    conn_y.close()
+
+    _btn(f"📬 Yanıtlar ({n_responses})", "nav_responses", "📬 Yanıtlar")
+
+    if n_responses > 0:
+        if n_offer > 0:
+            st.success(f"🎉 {n_offer} teklif")
+        if n_interview > 0:
+            st.info(f"📞 {n_interview} mülakat")
+        if n_rejection > 0:
+            st.warning(f"❌ {n_rejection} ret")
+
 page = st.session_state["page"]
 
 # ============================================================
@@ -534,7 +557,9 @@ elif page == "✅ Başvurulanlar":
             j.match_category as Match,
             j.priority as Öncelik,
             COALESCE(d.updated_at, d.created_at, '') as [CV Tarihi],
-            COALESCE(j.applied_at, '') as [Başvuru Tarihi]
+            COALESCE(j.applied_at, '') as [Başvuru Tarihi],
+            COALESCE(j.application_status, '') as [Durum],
+            (SELECT COUNT(*) FROM application_emails ae WHERE ae.job_id = j.job_id) as [Yanit]
         FROM jobs j
         LEFT JOIN job_documents d ON d.job_id = j.job_id
         WHERE j.is_applied = 1
@@ -548,15 +573,18 @@ elif page == "✅ Başvurulanlar":
     else:
         df_applied = pd.DataFrame(
             [list(r) for r in applied_rows],
-            columns=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik", "CV Tarihi", "Başvuru Tarihi"]
+            columns=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik", "CV Tarihi", "Başvuru Tarihi", "Durum", "Yanit"]
         )
         df_applied["CV Tarihi"] = df_applied["CV Tarihi"].astype(str).str[:16].str.replace("T", " ")
         df_applied["Uzaklık"] = df_applied["Konum"].apply(lambda x: format_distance(get_distance(x)))
 
-        # Sutun sirasi: Sec, CV Tarihi, Başvuru Tarihi, Match, id, Pozisyon, Şirket, Konum, Uzaklik, Öncelik
-        df_applied = df_applied[["id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Match", "Öncelik", "CV Tarihi", "Başvuru Tarihi"]]
+        # Durum ikonlari
+        icons = {"interview": "📞 Mülakat", "rejection": "❌ Ret", "offer": "🎉 Teklif", "info": "ℹ️ Bilgi"}
+        df_applied["Durum"] = df_applied["Durum"].apply(lambda x: icons.get(str(x).lower(), x or "—"))
+
+        df_applied = df_applied[["id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Match", "Öncelik", "Durum", "Yanit", "CV Tarihi", "Başvuru Tarihi"]]
         df_applied.insert(0, "Seç", False)
-        df_applied = df_applied[["Seç", "CV Tarihi", "Başvuru Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Öncelik"]]
+        df_applied = df_applied[["Seç", "CV Tarihi", "Başvuru Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Durum", "Yanit", "Öncelik"]]
 
         edited_applied = st.data_editor(
             df_applied,
@@ -573,9 +601,11 @@ elif page == "✅ Başvurulanlar":
                 "Şirket": st.column_config.TextColumn("Şirket", disabled=True, width=140),
                 "Konum": st.column_config.TextColumn("Konum", disabled=True, width=120),
                 "Uzaklık": st.column_config.TextColumn("Uzaklık", disabled=True, width=80),
+                "Durum": st.column_config.TextColumn("Durum", disabled=True, width=110),
+                "Yanit": st.column_config.NumberColumn("📬", disabled=True, width=50),
                 "Öncelik": st.column_config.TextColumn("Öncelik", disabled=True, width=70),
             },
-            disabled=["CV Tarihi", "Başvuru Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Öncelik"],
+            disabled=["CV Tarihi", "Başvuru Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Durum", "Yanit", "Öncelik"],
             key="applied_editor",
         )
 
@@ -621,6 +651,32 @@ elif page == "✅ Başvurulanlar":
                             text = _re.sub(r"[ \t]+", " ", text)
                             text = _re.sub(r"\n{3,}", "\n\n", text)
                             st.markdown(text.strip())
+
+                    # Bu ilana gelen yanitlar
+                    conn2 = get_connection()
+                    responses = conn2.execute("""
+                        SELECT sender, subject, category, confidence, reason, received_at
+                        FROM application_emails
+                        WHERE job_id = ?
+                        ORDER BY processed_at DESC
+                    """, (jid,)).fetchall()
+                    conn2.close()
+
+                    if responses:
+                        st.markdown("**📬 Bu ilana gelen yanıtlar:**")
+                        icons2 = {"interview": "📞", "rejection": "❌", "offer": "🎉", "info": "ℹ️"}
+                        for resp in responses:
+                            sender, subject, category, confidence, reason, received_at = resp
+                            icon = icons2.get(category, "📩")
+                            st.markdown(
+                                f"- {icon} **{category.upper() if category else '?'}** · "
+                                f"{subject} · `{sender}` · {received_at}"
+                            )
+                            if reason:
+                                st.caption(f"  💭 {reason}")
+                    else:
+                        st.caption("📭 Bu ilana henüz yanıt gelmedi.")
+
                     st.markdown("---")
                 conn.close()
 
@@ -1028,3 +1084,102 @@ elif page == "✍️ Manuel İlan":
 
                 st.success(f"Manuel ilan (ID={jid}) silindi.")
                 st.rerun()
+
+
+# ============================================================
+# SAYFA 6 — YANITLAR
+# ============================================================
+elif page == "📬 Yanıtlar":
+    st.subheader("📬 Başvuru Yanıtları")
+    st.caption("Gmail'den otomatik olarak çekilen başvuru yanıtları.")
+
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🔄 Sheets'ten Sync Et", type="primary"):
+            try:
+                import sys as _sys
+                from pathlib import Path as _P
+                _sys.path.insert(0, str(_P.home() / "job-agent-integrations"))
+                from dotenv import load_dotenv
+                load_dotenv(_P.home() / "job-agent-integrations" / ".env")
+                load_dotenv(_P.home() / "job-agent" / ".env")
+
+                from integrations.gmail_tracker import sync_sheet_to_db
+                with st.spinner("Sheets okunuyor, LLM sınıflandırıyor... (~30 sn)"):
+                    stats = sync_sheet_to_db(verbose=False)
+                st.success(
+                    f"Sync tamamlandı: "
+                    f"{stats['new']} yeni, "
+                    f"{stats['classified']} sınıflandırıldı, "
+                    f"{stats['matched']} eşleşti"
+                )
+                st.rerun()
+            except Exception as e:
+                st.error(f"Sync hatası: {e}")
+
+    with col2:
+        st.caption(
+            "💡 **Nasıl çalışır:** Gmail → Make.com → Google Sheets → bu sayfa. "
+            "Yeni mailler geldiğinde **Sync Et** butonuna bas."
+        )
+
+    st.divider()
+
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT
+            ae.email_id, ae.sender, ae.subject, ae.category,
+            ae.confidence, ae.reason, ae.received_at,
+            ae.job_id, j.company, j.job_title
+        FROM application_emails ae
+        LEFT JOIN jobs j ON j.job_id = ae.job_id
+        ORDER BY ae.processed_at DESC
+    """).fetchall()
+    conn.close()
+
+    if not rows:
+        st.info("Henüz yanıt yok. **Sync Et** butonuna bas veya Sheets'e yeni bir mail ekle.")
+    else:
+        categories = sorted(set(r[3] for r in rows if r[3]))
+        selected_cats = st.multiselect(
+            "Kategori filtrele", categories, default=categories,
+        )
+
+        filtered = [r for r in rows if r[3] in selected_cats]
+        st.caption(f"Toplam: **{len(filtered)}** yanıt")
+
+        icons = {
+            "interview": "📞", "rejection": "❌",
+            "offer": "🎉", "info": "ℹ️", "irrelevant": "🗑️",
+        }
+
+        for r in filtered:
+            (email_id, sender, subject, category,
+             confidence, reason, received_at,
+             job_id, company, job_title) = r
+
+            icon = icons.get(category, "❓")
+
+            with st.container(border=True):
+                h1, h2 = st.columns([3, 1])
+                with h1:
+                    st.markdown(f"### {icon} {subject}")
+                    st.caption(f"**From:** {sender} · **Received:** {received_at}")
+                with h2:
+                    if category == "offer":
+                        st.success(category.upper())
+                    elif category == "interview":
+                        st.info(category.upper())
+                    elif category == "rejection":
+                        st.error(category.upper())
+                    else:
+                        st.caption(category.upper())
+
+                if job_id and company:
+                    st.markdown(f"🔗 **İlgili ilan:** {company} — {job_title}")
+
+                if reason:
+                    st.caption(f"💭 **LLM gerekçesi:** {reason}")
+
+                if confidence:
+                    st.caption(f"🎯 Güven: {confidence:.0%}")
