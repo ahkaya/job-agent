@@ -1,0 +1,389 @@
+# Example candidate profile - copy to master_profile.yaml and fill in your details.
+# This file is gitignored; only the .example version is committed.
+
+contact:
+  phone: "+31 6 12345678"
+  email: "your.email@example.com"
+  location: "Your City, Netherlands"
+  linkedin: ""
+  github: ""
+
+profile:
+  name: "Your Name"
+  location: "Your City, Netherlands"
+  relocation: "Your City, Netherlands"
+  work_authorization: "Eligible to work in the Netherlands"
+  availability: "Immediately available"
+
+languages:
+  - language: "Turkish"
+    level: "Native"
+  - language: "English"
+    level: "Fluent"
+  - language: "Dutch"
+    level: "A1/A2"
+    note: "Actively learning"
+
+target_roles:
+  priority:
+    1: "Business Operations"
+    2: "Business Analyst"
+    3: "Supply Chain / Logistics / Warehouse"
+    4: "Marketing"
+    5: "Product Management"
+    6: "International Business / Trade"
+    7: "Research / Data"
+    8: "Sales / Commercial"
+
+  seniority:
+    include:
+      - "Entry Level"
+      - "Junior"
+      - "Medior"
+    low_priority:
+      - "Senior"
+      - "Lead"
+
+experience:
+
+  - company: "Your Company"
+    title: "Co-Founder & Business Operations Lead"
+    period: "2021-2025"
+    context: >
+      Founding partner involved in developing two D2C cosmetics brands
+      from the ground up. Level of involvement varied during the four-year
+      period and should not be presented as continuous full-time employment.
+
+    responsibilities:
+      - "Product planning"
+      - "Lab production and formulation trials"
+      - "Sample development"
+      - "Quality control"
+      - "Production and filling"
+      - "Aroma, color and glitter selection"
+      - "Raw material calculations"
+      - "Stock calculations"
+      - "Cost and unit-cost calculations"
+      - "Outer packaging research and cost evaluation"
+      - "Supplier coordination in Turkey and China"
+      - "Production and component troubleshooting"
+      - "Brand positioning"
+      - "Customer communication"
+      - "Order tracking"
+      - "Supplier and retailer negotiations"
+      - "B2B collaboration presentations and proposals"
+      - "Influencer outreach and product seeding"
+      - "Shipping coordination"
+      - "Content briefing for influencers"
+
+    verified_metrics:
+      - "~200 influencers/partners researched and organized in an Excel database"
+      - "~30-40% outreach acceptance rate"
+      - "~10M TikTok/Instagram views over approximately 6 months"
+
+    additional_context:
+      - "Target audience included young women aged approximately 15-30"
+      - "First product was lip gloss"
+      - "MQLE was positioned as the more affordable brand"
+      - "Taymada was planned with a more premium/luxury positioning"
+      - "Influencer campaign used free product seeding rather than paid influencer placements"
+      - "No revenue, profit or cost-saving figures should be invented"
+
+  - company: "Your University"
+    title: "Research Assistant"
+    department: "Faculty of Applied Sciences, Department of International Trade and Logistics"
+    period: "2019-04 to 2026-08"
+
+    responsibilities:
+      - "Academic research"
+      - "Sustainability and consumer behavior research"
+      - "Data collection"
+      - "Data cleaning"
+      - "Data structuring"
+      - "Data validation"
+      - "Statistical analysis"
+      - "Academic and student project support"
+      - "Research coordination"
+      - "Coordination among research assistants and contributors"
+
+    methods:
+      - "Correlation analysis"
+      - "Regression analysis"
+      - "t-tests"
+      - "ANOVA"
+      - "Factor analysis"
+      - "Cronbach's alpha reliability analysis"
+      - "PLS-SEM"
+
+    tools:
+      - "Excel"
+      - "SPSS"
+      - "SmartPLS"
+
+    congress_experience:
+      number_of_congresses: 5
+      period: "5 years"
+      format: "Online international academic congresses"
+      participants: "100+ per congress"
+      organizing_team: "Approximately 7-8 people"
+      responsibilities:
+        - "Speaker communication"
+        - "Abstract and paper submission coordination"
+        - "Registration"
+        - "Program preparation"
+        - "Participant communication"
+        - "Email management"
+        - "Certificate coordination"
+        - "Online event operations"
+
+  - company: "Your Previous University"
+    title: "Project Research Assistant"
+    period: "2017-10 to 2018-06"
+    project_context: >
+      University-funded research project concerning sustainable tourism
+      and women's cooperatives, involving multiple institutions.
+
+    responsibilities:
+      - "Conducted and documented semi-structured interviews in Turkish"
+      - "Used prepared questions and follow-up questions during interviews"
+      - "Took interview notes"
+      - "Organized qualitative research data"
+      - "Prepared qualitative data using NVivo for analysis and reporting"
+
+    tools:
+      - "NVivo"
+
+  - company: "iGOA Digital Marketing Agency"
+    title: "Digital Marketing Intern"
+    period: "2014-06 to 2014-09"
+
+    projects:
+      - "Şölen Gıda website"
+      - "Şölen Holding construction company website"
+
+    responsibilities:
+      - "Supported website projects"
+      - "CMS content management"
+      - "Coordinated content-entry tasks"
+      - "Assigned and followed up tasks for 5+ interns"
+      - "Identified content-structure issues in CMS pages"
+      - "Prepared CMS training documentation"
+      - "Delivered hands-on CMS training"
+      - "Attended client meetings when requested by the project manager"
+
+    tools:
+      - "WordPress"
+      - "Basic SEO"
+      - "Basic Google Ads exposure"
+      - "HTML/CSS fundamentals"
+
+  - company: "VakıfBank"
+    title: "Assistant Specialist Candidate - Bancassurance"
+    period: "2017-09"
+    duration: "Approximately 1 week"
+    context: >
+      Selected through a competitive recruitment process and joined the
+      Bancassurance unit, then left after receiving acceptance to the
+      master's program.
+    selection_process_exposure:
+      - "English"
+      - "Reasoning / general aptitude"
+      - "Economics"
+      - "Accounting"
+      - "Banking and finance"
+      - "Law"
+      - "Public finance"
+
+  - company: "Samsung"
+    title: "Galaxy Tablet Launch Promoter"
+    period: "Approximately 2011-2012"
+    context: "Promotional retail experience in Istanbul"
+
+  - company: "Sony PlayStation"
+    title: "Product Promoter"
+    period: "Approximately 2011-2012"
+    context: "Short-term promotional retail experience in a technology store"
+
+education:
+
+  - institution: "Your University"
+    degree: "Ph.D. in International Trade & Logistics"
+    period: "2019-present"
+    status: "Thesis stage"
+    verified_status:
+      - "Coursework completed"
+      - "Doctoral qualifying exam passed"
+    research_area:
+      - "Sustainability"
+      - "Sustainable consumption"
+      - "Self-efficacy"
+      - "Behavioral intentions"
+    guardrail: "Never present the Ph.D. as completed"
+
+  - institution: "Your Previous University"
+    degree: "M.A. in International Trade Management"
+    period: "2016-2019"
+    language: "100% English"
+    thesis: "The Role of National Culture in Sharing Economy Participation and Usage"
+    research:
+      - "Cross-country secondary datasets"
+      - "Airbnb share of total accommodation"
+      - "Uber and similar sharing-economy platform share of total transport"
+      - "Examined the relationship between national culture and sharing-economy participation and usage"
+
+  - institution: "Your Bachelor University"
+    degree: "B.A. in Business Informatics"
+    period: "2011-2015"
+    language: "100% English"
+    academic_exposure:
+      - "SQL"
+      - "NoSQL"
+      - "Object-oriented programming foundations"
+      - "MS Visio"
+      - "Python"
+      - "Qlik BI"
+
+skills:
+
+  - skill: "Excel / Google Sheets"
+    level: "Intermediate practical"
+    context:
+      - "Research data cleaning"
+      - "Data structuring"
+      - "Data validation"
+      - "Calculations"
+      - "Organizing influencer/contact databases"
+    restrictions:
+      - "Do not claim advanced Excel"
+      - "Do not claim PivotTables unless separately verified"
+
+  - skill: "SPSS"
+    level: "Strong academic/research"
+    context:
+      - "Statistical analysis"
+      - "Correlation"
+      - "Regression"
+      - "t-tests"
+      - "ANOVA"
+      - "Factor analysis"
+      - "Reliability analysis"
+
+  - skill: "SmartPLS"
+    level: "Strong academic/research"
+    context:
+      - "PLS-SEM"
+
+  - skill: "NVivo"
+    level: "Practical academic"
+    context:
+      - "Qualitative research data organization and preparation"
+
+  - skill: "WordPress"
+    level: "Strong practical"
+    context:
+      - "Personal websites"
+      - "AndroidTR.org"
+      - "Digital marketing agency projects"
+      - "Website content management"
+
+  - skill: "Qlik BI"
+    level: "Certified training"
+    context:
+      - "End-user and developer training during university"
+    restrictions:
+      - "No professional Qlik experience after university"
+
+  - skill: "SQL"
+    level: "Foundational academic"
+
+  - skill: "Python"
+    level: "Foundational academic"
+    restrictions:
+      - "Do not present as a current professional programming skill"
+
+  - skill: "Mailchimp"
+    level: "Practical"
+    context:
+      - "Influencer outreach"
+      - "Email/open tracking"
+
+  - skill: "HTML/CSS"
+    level: "Basic/foundational"
+
+  - skill: "SEO"
+    level: "Basic exposure"
+
+  - skill: "Google Ads"
+    level: "Basic/limited exposure"
+
+certifications:
+  - name: "Qlik BI End User & Developer Training"
+    status: "Certified training"
+    context: "Completed through Qlik Country trainers during university"
+
+research_profile:
+  quantitative_methods:
+    - "Correlation"
+    - "Regression"
+    - "t-test"
+    - "ANOVA"
+    - "Factor analysis"
+    - "Cronbach's alpha"
+    - "PLS-SEM"
+  qualitative_methods:
+    - "Semi-structured interviews"
+    - "Qualitative data organization"
+  research_data:
+    - "Secondary data"
+    - "Cross-country datasets"
+    - "Survey/research datasets"
+
+guardrails:
+
+  never_invent:
+    - "Skills"
+    - "Responsibilities"
+    - "Achievements"
+    - "Metrics"
+    - "Employment dates"
+    - "Job titles"
+    - "Education"
+    - "Certifications"
+    - "Revenue"
+    - "Profit"
+    - "Cost savings"
+    - "Team size"
+    - "Performance percentages"
+
+  never_overstate:
+    - "Technical skills"
+    - "Programming experience"
+    - "Professional data science experience"
+    - "Professional Qlik experience"
+    - "SEO expertise"
+    - "Google Ads expertise"
+    - "Cosmetic formulation expertise"
+
+  preserve_exactly:
+    - "Employment dates"
+    - "Degree status"
+    - "Verified metrics"
+    - "Official job titles"
+    - "Ph.D. thesis-stage status"
+
+  phd_rule: "Always describe the Ph.D. as thesis stage; never as completed"
+
+  evidence_levels:
+    VERIFIED: "Can be used directly"
+    VERIFIED_WITH_CONTEXT: "Can be used when appropriate context is included"
+    DO_NOT_USE: "Do not include in normal CV unless specifically requested"
+
+  matching_rule: >
+    Match jobs primarily using responsibilities, requirements and transferable
+    experience rather than job title alone. Experience-year requirements should
+    not automatically exclude a candidate when relevant transferable evidence exists.
+
+  decision_rule: >
+    The system should inform the user with evidence, direct matches,
+    transferable matches and gaps. The system must not make the final
+    application decision for the user.

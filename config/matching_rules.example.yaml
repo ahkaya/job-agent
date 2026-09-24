@@ -1,0 +1,185 @@
+# Example matching rules - copy to matching_rules.yaml and customize.
+# This file is gitignored; only the .example version is committed.
+
+job_age:
+  maximum_days: 30
+  action_if_older: "EXCLUDE"
+
+location:
+  country: "Netherlands"
+  scope: "Nationwide"
+  relocation_allowed: true
+  commute_limit: null
+
+work_authorization:
+  status: "Eligible to work in the Netherlands"
+  sponsorship_needed: false
+
+seniority:
+  include:
+    - "Entry Level"
+    - "Junior"
+    - "Medior"
+  low_priority:
+    - "Senior"
+    - "Lead"
+  exclude:
+    - "Director"
+    - "Head of"
+    - "VP"
+    - "C-level"
+
+salary:
+  use_as_filter: false
+  display_if_available: true
+  if_not_disclosed: "Not disclosed"
+
+language:
+  dutch:
+    not_mentioned: "NORMAL"
+    preferred_or_nice_to_have: "MINOR_DISADVANTAGE"
+    required_but_flexible: "EVALUATE"
+    fluent_or_native_required: "EXCLUDE"
+    core_daily_customer_phone_sales_language: "EXCLUDE"
+
+education:
+  relevant_fields:
+    - "Business"
+    - "Business Informatics"
+    - "Management Information Systems"
+    - "Information Systems"
+    - "International Business"
+    - "Economics"
+    - "Management"
+    - "Marketing"
+    - "Logistics"
+    - "Supply Chain"
+    - "International Trade"
+    - "Related business fields"
+
+  rule: >
+    A relevant degree OR relevant professional/research experience can
+    satisfy the educational route when the job description allows either.
+
+  incompatible_mandatory_degree: "EXCLUDE"
+
+experience:
+  years_are_hard_filter: false
+
+  rule: >
+    Do not automatically exclude a candidate because the requested number
+    of years exceeds the candidate's exact job-title experience. Evaluate
+    relevant responsibilities and transferable experience first.
+
+  requirement_evidence:
+    direct: "Experience directly matching the requirement"
+    transferable: "Different experience providing relevant transferable evidence"
+    none: "No credible evidence in Master Profile"
+
+match_categories:
+  strong_match:
+    definition: >
+      Strong evidence across the core responsibilities and requirements,
+      with no major profile conflict.
+
+  potential_match:
+    definition: >
+      Relevant transferable experience exists, but there are noticeable
+      gaps in exact experience, tools, industry or requirements.
+
+  low_relevance:
+    definition: >
+      Limited overlap with the candidate's verified experience or skills.
+
+matching_method:
+  primary_basis:
+    - "Job responsibilities"
+    - "Required skills"
+    - "Required qualifications"
+    - "Transferable experience"
+    - "Language requirements"
+    - "Education compatibility"
+
+  secondary_basis:
+    - "Job title"
+    - "Seniority"
+    - "Years of experience"
+
+  required_output:
+    - "Match Category"
+    - "Why Match"
+    - "Direct Matches"
+    - "Transferable Matches"
+    - "Gaps"
+    - "Experience Gap"
+    - "Education Match"
+    - "Language Match"
+
+  numerical_score:
+    display_to_user: false
+    use_as_final_decision: false
+
+blacklist:
+  job_titles:
+    - "Call Center Agent"
+    - "Call Centre Agent"
+    - "Call Center Representative"
+    - "Call Centre Representative"
+    - "Contact Center Agent"
+    - "Contact Centre Agent"
+    - "Telemarketer"
+    - "Telemarketing"
+    - "Telesales"
+    - "Door-to-door Sales"
+    - "Street Sales"
+
+  rule: "EXCLUDE"
+
+remote:
+  fully_remote:
+    priority: "LOW"
+    exception: "Show if exceptionally strong match"
+
+  hybrid:
+    priority: "NORMAL"
+
+  onsite:
+    priority: "NORMAL"
+
+priority_job_families:
+  1: "Business Operations"
+  2: "Business Analyst"
+  3: "Supply Chain / Logistics / Warehouse"
+  4: "Marketing"
+  5: "Product Management"
+  6: "International Business / Trade"
+  7: "Research / Data"
+  8: "Sales / Commercial"
+
+decision_policy:
+  user_makes_final_decision: true
+  system_should_inform_not_decide: true
+  never_recommend_application: true
+  show_evidence_and_gaps: true
+
+data_integrity:
+  source_of_truth: "config/master_profile.yaml"
+
+  never_invent:
+    - "Skills"
+    - "Experience"
+    - "Responsibilities"
+    - "Achievements"
+    - "Metrics"
+    - "Dates"
+    - "Job titles"
+    - "Education"
+    - "Certifications"
+    - "Tools"
+    - "Projects"
+
+  phd_status:
+    rule: "Always describe as thesis stage; never completed"
+
+  verified_metrics:
+    rule: "Only use metrics explicitly present in Master Profile"

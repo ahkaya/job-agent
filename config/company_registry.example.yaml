@@ -1,0 +1,59 @@
+# Example company registry - copy to company_registry.yaml and customize.
+# This file is gitignored; only the .example version is committed.
+
+companies:
+- name: Stripe
+  careers_url: https://stripe.com/jobs
+  ats: greenhouse
+  board_token: stripe
+  active: true
+- name: Remote
+  careers_url: https://remote.com/careers
+  ats: greenhouse
+  board_token: remotecom
+  active: true
+- name: Coda
+  careers_url: https://jobs.lever.co/Coda
+  ats: lever
+  board_token: Coda
+  active: true
+- name: Bloom & Wild
+  careers_url: https://jobs.lever.co/bloomon
+  ats: lever
+  board_token: bloomon
+  active: true
+- name: Veepee
+  careers_url: https://jobs.lever.co/veepee
+  ats: lever
+  board_token: veepee
+  active: true
+- name: Mollie
+  careers_url: https://jobs.ashbyhq.com/Mollie
+  ats: ashby
+  board_token: Mollie
+  active: true
+- name: FeedbackFruits
+  careers_url: https://jobs.ashbyhq.com/feedbackfruits
+  ats: ashby
+  board_token: feedbackfruits
+  active: true
+- name: myTomorrows
+  careers_url: https://jobs.ashbyhq.com/myTomorrows
+  ats: ashby
+  board_token: myTomorrows
+  active: true
+- name: ARC'TERYX
+  careers_url: https://jobs.lever.co/arcteryx.com
+  ats: lever
+  board_token: arcteryx.com
+  active: true
+- name: Strukton Nederland
+  careers_url: https://www.strukton.nl/werken-bij/
+  ats: smartrecruiters
+  board_token: StruktonNederland
+  active: true
+- name: Boskalis
+  careers_url: https://careers.boskalis.com/
+  ats: smartrecruiters
+  board_token: Boskalis
+  active: true
