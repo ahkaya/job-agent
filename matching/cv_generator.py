@@ -52,7 +52,8 @@ CV_PROMPT = """You are an expert CV writer and ATS optimization specialist with 
    the following role families: Business Operations, Business Analyst, Operations,
    Program/Project Coordinator, Data, Tech, Automation, Product, Marketing.
    Format: bold project name, one-line context, 2-3 bullets (Python, REST APIs,
-   LLM APIs, Streamlit). This is NOT optional for these roles.
+   LLM APIs, Streamlit). ALWAYS include the GitHub URL "github.com/ahkaya/job-agent"
+   in the project line or as a separate link. This is NOT optional for these roles.
    OMIT this section ONLY for: warehouse, manual labor, driving, production,
    cleaning, security, or unskilled entry-level roles.)
 
