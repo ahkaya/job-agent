@@ -44,3 +44,13 @@ htmlcov/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Backup files
+*.bak
+*.bak2
+
+# A/B test results (contain job analysis derived from personal profile)
+data/glm_ab_results*.json
+
+# App backups
+*.backup_*
