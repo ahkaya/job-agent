@@ -1,12 +1,46 @@
-.venv/
+# Python
 __pycache__/
 *.py[cod]
-.pytest_cache/
-.DS_Store
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables (API keys)
 .env
+.env.*
+!.env.example
 
-# Local database
-/data/jobs.db
+# Personal data (DO NOT COMMIT)
+config/master_profile.yaml
+config/matching_rules.yaml
+config/company_registry.yaml
+data/jobs.db
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+static/cv/
+static/*
+!static/.gitkeep
 
-# Local database
-/data/jobs.db
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Streamlit
+.streamlit/secrets.toml
