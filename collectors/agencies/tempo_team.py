@@ -112,7 +112,7 @@ class TempoTeamCollector(BaseAgencyCollector):
 
             print(f"  New jobs: {page_new}")
 
-            # Son sayfa kontrolü
+            # Last page check
             total_pages = data.get("pages", 0)
             if page >= total_pages:
                 break

@@ -16,23 +16,23 @@ from dashboard.distance_map import get_distance, format_distance
 st.set_page_config(page_title="Job Agent Dashboard", layout="wide")
 st.title("🎯 Job Agent Dashboard")
 
-# Session state: aktif sayfa
+# Session state: active page
 if "page" not in st.session_state:
-    st.session_state["page"] = "📋 Havuz"
+    st.session_state["page"] = "📋 Pool"
 
 with st.sidebar:
-    st.header("⚙️ Kontrol Paneli")
+    st.header("⚙️ Control Panel")
 
-    if st.button("🔍 Yeni İlanları Çek ve Eşleştir", type="primary", use_container_width=True):
-        with st.spinner("Toplama ve eşleştirme çalışıyor... (birkaç dakika)"):
+    if st.button("🔍 Fetch & Match New Jobs", type="primary", use_container_width=True):
+        with st.spinner("Collecting and matching... (a few minutes)"):
             result = subprocess.run(
                 [sys.executable, "main.py"],
                 cwd=ROOT, capture_output=True, text=True,
             )
             if result.returncode == 0:
-                st.success("Tamamlandı!")
+                st.success("Done!")
             else:
-                st.error("Hata!")
+                st.error("Failed!")
             st.code(result.stdout[-2000:])
 
     st.divider()
@@ -57,7 +57,7 @@ with st.sidebar:
 
     current = st.session_state["page"]
 
-    # Aktif sayfa icin gosterge
+    # Nav button with active state
     def _btn(label, key, target):
         is_active = current == target
         style = "primary" if is_active else "secondary"
@@ -65,26 +65,26 @@ with st.sidebar:
             st.session_state["page"] = target
             st.rerun()
 
-    _btn(f"📋 Havuz ({n_pool})", "nav_pool", "📋 Havuz")
-    _btn(f"📄 CV Üretilmiş ({n_cv})", "nav_cv", "📄 CV Üretilenler")
-    _btn(f"✅ Başvuruldu ({n_applied})", "nav_applied", "✅ Başvurulanlar")
-    _btn(f"🗑️ Gizlenen ({n_hidden})", "nav_hidden", "🗑️ Gizlenen")
+    _btn(f"📋 Pool ({n_pool})", "nav_pool", "📋 Pool")
+    _btn(f"📄 Generated CVs ({n_cv})", "nav_cv", "📄 Generated CVs")
+    _btn(f"✅ Applied ({n_applied})", "nav_applied", "✅ Applied")
+    _btn(f"🗑️ Hidden ({n_hidden})", "nav_hidden", "🗑️ Hidden")
 
     st.divider()
 
-    # Manuel ilan sayisi
+    # Manual job count
     conn2 = get_connection()
     n_manual = conn2.execute("""
         SELECT COUNT(*) FROM jobs
-        WHERE match_category = 'Manuel' AND is_hidden = 0
+        WHERE match_category = 'Manual' AND is_hidden = 0
     """).fetchone()[0]
     conn2.close()
 
-    _btn(f"✍️ Manuel İlan ({n_manual})", "nav_manual", "✍️ Manuel İlan")
+    _btn(f"✍️ Manual Job ({n_manual})", "nav_manual", "✍️ Manual Job")
 
     st.divider()
 
-    # Yanit istatistikleri
+    # Response statistics
     conn_y = get_connection()
     try:
         n_responses = conn_y.execute("SELECT COUNT(*) FROM application_emails").fetchone()[0]
@@ -95,24 +95,26 @@ with st.sidebar:
         n_responses = n_interview = n_rejection = n_offer = 0
     conn_y.close()
 
-    _btn(f"📬 Yanıtlar ({n_responses})", "nav_responses", "📬 Yanıtlar")
+    _btn(f"📬 Responses ({n_responses})", "nav_responses", "📬 Responses")
 
     if n_responses > 0:
         if n_offer > 0:
-            st.success(f"🎉 {n_offer} teklif")
+            st.success(f"🎉 {n_offer} offers")
         if n_interview > 0:
-            st.info(f"📞 {n_interview} mülakat")
+            st.info(f"📞 {n_interview} interviews")
         if n_rejection > 0:
-            st.warning(f"❌ {n_rejection} ret")
+            st.warning(f"❌ {n_rejection} rejections")
 
 page = st.session_state["page"]
 
 # ============================================================
-# SAYFA 1 — HAVUZ
+
 # ============================================================
-if page == "📋 Havuz":
-    st.subheader("📋 İlan Havuzu")
-    st.caption("Beğendiklerini seç → CV üret. Beğenmediklerini seç → sil.")
+# PAGE 1 - POOL
+# ============================================================
+if page == "📋 Pool":
+    st.subheader("📋 Job Pool")
+    st.caption("Select jobs you like → generate CVs. Select jobs you dislike → delete.")
 
     conn = get_connection()
 
@@ -125,7 +127,7 @@ if page == "📋 Havuz":
         )
     with c2:
         priority_filter = st.multiselect(
-            "Öncelik",
+            "Priority",
             ["High", "Normal", "Low"],
             default=["High", "Normal", "Low"],
         )
@@ -133,26 +135,26 @@ if page == "📋 Havuz":
         sources = [r[0] for r in conn.execute(
             "SELECT DISTINCT source FROM job_sources WHERE source IS NOT NULL ORDER BY source"
         ).fetchall()]
-        source_filter = st.multiselect("Kaynak", sources, default=[])
+        source_filter = st.multiselect("Source", sources, default=[])
     with c4:
         max_distance = st.slider(
-            "Maks. Uzaklık (km)",
+            "Max Distance (km)",
             min_value=0,
             max_value=300,
             value=300,
             step=10,
-            help="Almelo merkezli yaklaşık mesafe. 300 = filtre kapalı.",
+            help="Approximate distance from Almelo. 300 = filter off.",
         )
 
     sql = """
         SELECT
             j.job_id as id,
-            j.job_title as Pozisyon,
-            j.company as Şirket,
-            j.location as Konum,
+            j.job_title as Position,
+            j.company as Company,
+            j.location as Location,
             j.match_category as Match,
-            j.priority as Öncelik,
-            COALESCE(s.source, '') as Kaynak
+            j.priority as Priority,
+            COALESCE(s.source, '') as Source
         FROM jobs j
         LEFT JOIN job_sources s ON s.job_id = j.job_id AND s.is_primary = 1
         LEFT JOIN job_documents d ON d.job_id = j.job_id
@@ -177,42 +179,30 @@ if page == "📋 Havuz":
     pool_df = pd.read_sql_query(sql, conn, params=params)
     conn.close()
 
-    # Uzaklik hesapla
-    if "Konum" in pool_df.columns:
-        pool_df["_dist"] = pool_df["Konum"].apply(lambda x: get_distance(x))
+    # Compute distance
+    if "Location" in pool_df.columns:
+        pool_df["_dist"] = pool_df["Location"].apply(lambda x: get_distance(x))
 
-        # Filtre uygula (300 ise filtre kapali)
+        # Apply filter (300 = filter off)
         if max_distance < 300:
             pool_df = pool_df[
                 (pool_df["_dist"].notna()) & (pool_df["_dist"] <= max_distance)
             ]
 
-        # Uzaklik sutunu ekle (Konum'dan sonra)
-        pool_df["Uzaklık"] = pool_df["_dist"].apply(
+        # Add Distance column (after Location)
+        pool_df["Distance"] = pool_df["_dist"].apply(
             lambda x: format_distance(x)
         )
         pool_df = pool_df.drop(columns=["_dist"])
 
-        # Sutun sirasini duzenle
+        # Reorder columns
         cols = list(pool_df.columns)
-        cols.remove("Uzaklık")
-        konum_idx = cols.index("Konum") if "Konum" in cols else len(cols) - 1
-        cols.insert(konum_idx + 1, "Uzaklık")
+        cols.remove("Distance")
+        loc_idx = cols.index("Location") if "Location" in cols else len(cols) - 1
+        cols.insert(loc_idx + 1, "Distance")
         pool_df = pool_df[cols]
 
-    # Uzaklik sutunu ekle (Konum'dan sonra)
-    if "Konum" in pool_df.columns:
-        pool_df["Uzaklık"] = pool_df["Konum"].apply(
-            lambda x: format_distance(get_distance(x))
-        )
-        # Sutun sirasini duzenle: Konum'dan sonra Uzaklik
-        cols = list(pool_df.columns)
-        cols.remove("Uzaklık")
-        konum_idx = cols.index("Konum") if "Konum" in cols else len(cols) - 1
-        cols.insert(konum_idx + 1, "Uzaklık")
-        pool_df = pool_df[cols]
-
-    pool_df.insert(0, "Seç", False)
+    pool_df.insert(0, "Select", False)
 
     edited = st.data_editor(
         pool_df,
@@ -220,20 +210,20 @@ if page == "📋 Havuz":
         hide_index=True,
         height=400,
         column_config={
-            "Seç": st.column_config.CheckboxColumn("Seç", default=False),
+            "Select": st.column_config.CheckboxColumn("Select", default=False),
             "id": st.column_config.NumberColumn("ID", disabled=True, width="small"),
         },
-        disabled=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik", "Kaynak"],
+        disabled=["id", "Position", "Company", "Location", "Match", "Priority", "Source"],
         key="pool_editor",
     )
 
-    selected_ids = edited[edited["Seç"] == True]["id"].tolist()
-    st.caption(f"Seçili: **{len(selected_ids)}** ilan")
+    selected_ids = edited[edited["Select"] == True]["id"].tolist()
+    st.caption(f"Selected: **{len(selected_ids)}** jobs")
 
-    # Secili ilanlarin detayini goster
+    # Show details of selected jobs
     if selected_ids:
         st.divider()
-        with st.expander(f"📋 Seçili İlan Detayı ({len(selected_ids)} ilan)", expanded=True):
+        with st.expander(f"📋 Selected Job Details ({len(selected_ids)} jobs)", expanded=True):
             conn = get_connection()
             for jid in selected_ids:
                 jid = int(jid)
@@ -251,38 +241,38 @@ if page == "📋 Havuz":
                     continue
 
                 st.markdown(f"### {detail[2]} — {detail[1]}")
-                st.caption(f"ID: {detail[0]} | {detail[3]} | Match: {detail[5]} | Öncelik: {detail[6]} | Kaynak: {detail[8]}")
+                st.caption(f"ID: {detail[0]} | {detail[3]} | Match: {detail[5]} | Priority: {detail[6]} | Source: {detail[8]}")
 
                 if detail[7]:
-                    st.markdown(f"🔗 **[İlanı Aç]({detail[7]})**")
+                    st.markdown(f"🔗 **[Open Job Posting]({detail[7]})**")
 
                 if detail[4]:
-                    with st.expander("📄 İlan Metnini Göster", expanded=False):
+                    with st.expander("📄 Show Job Description", expanded=False):
                         import re as _re
                         from bs4 import BeautifulSoup as _BS
 
-                        # HTML -> temiz metin
+                        # HTML -> clean text
                         raw = str(detail[4])
                         soup = _BS(raw, "html.parser")
 
-                        # <li> etiketlerini "- " ile madde yap
+                        # Turn <li> tags into "- " bullets
                         for li in soup.find_all("li"):
                             li.insert_before("\n- ")
 
-                        # <br>, <p>, <h*> etiketlerini newline yap
+                        # Turn <br>, <p>, <h*> tags into newlines
                         for tag in soup.find_all(["br", "p", "h1", "h2", "h3", "h4", "h5", "h6", "div", "ul", "ol"]):
                             tag.insert_before("\n\n")
 
                         text = soup.get_text(" ", strip=True)
 
-                        # Coklu bosluk ve newline'lari temizle
+                        # Clean up excessive whitespace and newlines
                         text = _re.sub(r"[ \t]+", " ", text)
                         text = _re.sub(r"\n{3,}", "\n\n", text)
                         text = text.strip()
 
                         st.markdown(text)
                 else:
-                    st.caption("_İlan metni yok_")
+                    st.caption("_No job description_")
 
                 st.markdown("---")
             conn.close()
@@ -290,7 +280,7 @@ if page == "📋 Havuz":
     col_a, col_b = st.columns(2)
 
     with col_a:
-        if st.button("🗑️ Seçilenleri Sil", disabled=not selected_ids, use_container_width=True):
+        if st.button("🗑️ Delete Selected", disabled=not selected_ids, use_container_width=True):
             conn = get_connection()
             conn.executemany(
                 "UPDATE jobs SET is_hidden = 1 WHERE job_id = ?",
@@ -298,17 +288,17 @@ if page == "📋 Havuz":
             )
             conn.commit()
             conn.close()
-            st.success(f"{len(selected_ids)} ilan silindi.")
+            st.success(f"{len(selected_ids)} jobs deleted.")
             st.rerun()
 
     with col_b:
-        if st.button("✍️ Seçilenler İçin CV Üret", type="primary", disabled=not selected_ids, use_container_width=True):
+        if st.button("✍️ Generate CVs for Selected", type="primary", disabled=not selected_ids, use_container_width=True):
             from matching.cv_generator import (
                 generate_cv_and_cover_letter,
                 save_documents_to_db,
             )
 
-            st.warning(f"{len(selected_ids)} ilan için CV üretilecek (~{len(selected_ids) * 2} dk)")
+            st.warning(f"Generating CVs for {len(selected_ids)} jobs (~{len(selected_ids) * 2} min)")
 
             progress = st.progress(0)
             status = st.empty()
@@ -339,27 +329,26 @@ if page == "📋 Havuz":
                     cv_text = result.get("cv", "")
                     cover_text = result.get("cover_letter", "")
                     if not cv_text:
-                        raise RuntimeError(f"LLM bos CV dondurdu (jid={jid})")
+                        raise RuntimeError(f"LLM returned empty CV (jid={jid})")
                     save_documents_to_db(jid, cv_text, cover_text)
 
                     from matching.cv_generator import save_files_to_disk
                     save_files_to_disk(jid, job["company"], job["job_title"])
                 except Exception as e:
-                    st.error(f"Hata ({jid}): {e}")
+                    st.error(f"Error ({jid}): {e}")
 
                 progress.progress((idx + 1) / len(selected_ids))
 
             conn.close()
-            status.success("Tamamlandı!")
+            status.success("Done!")
             st.rerun()
 
-
 # ============================================================
-# SAYFA 2 — CV ÜRETİLENLER
+# PAGE 2 - GENERATED CVS
 # ============================================================
-elif page == "📄 CV Üretilenler":
-    st.subheader("📄 CV Üretilen İlanlar")
-    st.caption("CV üretilmiş, henüz başvurulmamış ilanlar. İndirmek için satırları işaretle.")
+elif page == "📄 Generated CVs":
+    st.subheader("📄 Jobs with Generated CVs")
+    st.caption("Jobs with a generated CV but not yet applied. Check rows to download.")
 
     conn = get_connection()
     cv_rows = conn.execute("""
@@ -380,19 +369,19 @@ elif page == "📄 CV Üretilenler":
     conn.close()
 
     if not cv_rows:
-        st.info("Henüz CV üretilmedi.")
+        st.info("No CVs generated yet.")
     else:
         df_cv = pd.DataFrame(
             [list(r) for r in cv_rows],
-            columns=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik", "CV Tarihi"]
+            columns=["id", "Position", "Company", "Location", "Match", "Priority", "CV Date"]
         )
-        df_cv["CV Tarihi"] = df_cv["CV Tarihi"].astype(str).str[:16].str.replace("T", " ")
-        df_cv["Uzaklık"] = df_cv["Konum"].apply(lambda x: format_distance(get_distance(x)))
+        df_cv["CV Date"] = df_cv["CV Date"].astype(str).str[:16].str.replace("T", " ")
+        df_cv["Distance"] = df_cv["Location"].apply(lambda x: format_distance(get_distance(x)))
 
-        # Sutun sirasi: Sec, CV Tarihi, Match, id, Pozisyon, Şirket, Konum, Uzaklik, Öncelik
-        df_cv = df_cv[["id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Match", "Öncelik", "CV Tarihi"]]
-        df_cv.insert(0, "Seç", False)
-        df_cv = df_cv[["Seç", "CV Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Öncelik"]]
+        # Column order: Select, CV Date, Match, id, Position, Company, Location, Distance, Priority
+        df_cv = df_cv[["id", "Position", "Company", "Location", "Distance", "Match", "Priority", "CV Date"]]
+        df_cv.insert(0, "Select", False)
+        df_cv = df_cv[["Select", "CV Date", "Match", "id", "Position", "Company", "Location", "Distance", "Priority"]]
 
         edited_cv = st.data_editor(
             df_cv,
@@ -400,27 +389,27 @@ elif page == "📄 CV Üretilenler":
             hide_index=True,
             height=min(400, 60 + 35 * len(df_cv)),
             column_config={
-                "Seç": st.column_config.CheckboxColumn("Seç", default=False, width=40),
-                "CV Tarihi": st.column_config.TextColumn("CV Tarihi", disabled=True, width=130),
+                "Select": st.column_config.CheckboxColumn("Select", default=False, width=40),
+                "CV Date": st.column_config.TextColumn("CV Date", disabled=True, width=130),
                 "Match": st.column_config.TextColumn("Match", disabled=True, width=110),
                 "id": st.column_config.NumberColumn("ID", disabled=True, width=50),
-                "Pozisyon": st.column_config.TextColumn("Pozisyon", disabled=True, width=220),
-                "Şirket": st.column_config.TextColumn("Şirket", disabled=True, width=140),
-                "Konum": st.column_config.TextColumn("Konum", disabled=True, width=120),
-                "Uzaklık": st.column_config.TextColumn("Uzaklık", disabled=True, width=80),
-                "Öncelik": st.column_config.TextColumn("Öncelik", disabled=True, width=70),
+                "Position": st.column_config.TextColumn("Position", disabled=True, width=220),
+                "Company": st.column_config.TextColumn("Company", disabled=True, width=140),
+                "Location": st.column_config.TextColumn("Location", disabled=True, width=120),
+                "Distance": st.column_config.TextColumn("Distance", disabled=True, width=80),
+                "Priority": st.column_config.TextColumn("Priority", disabled=True, width=70),
             },
-            disabled=["CV Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Öncelik"],
+            disabled=["CV Date", "Match", "id", "Position", "Company", "Location", "Distance", "Priority"],
             key="cv_editor",
         )
 
-        selected_ids = edited_cv[edited_cv["Seç"] == True]["id"].tolist()
-        st.caption(f"Seçili: **{len(selected_ids)}** ilan")
+        selected_ids = edited_cv[edited_cv["Select"] == True]["id"].tolist()
+        st.caption(f"Selected: **{len(selected_ids)}** jobs")
 
-        # Secili ilanlarin detayini goster
+        # Show details of selected jobs
         if selected_ids:
             st.divider()
-            with st.expander(f"📋 Seçili İlan Detayı ({len(selected_ids)} ilan)", expanded=True):
+            with st.expander(f"📋 Selected Job Details ({len(selected_ids)} jobs)", expanded=True):
                 conn = get_connection()
                 for jid in selected_ids:
                     jid = int(jid)
@@ -436,11 +425,11 @@ elif page == "📄 CV Üretilenler":
                     if not detail:
                         continue
                     st.markdown(f"### {detail[2]} — {detail[1]}")
-                    st.caption(f"ID: {detail[0]} | {detail[3]} | Match: {detail[5]} | Öncelik: {detail[6]} | Kaynak: {detail[8]}")
+                    st.caption(f"ID: {detail[0]} | {detail[3]} | Match: {detail[5]} | Priority: {detail[6]} | Source: {detail[8]}")
                     if detail[7]:
-                        st.markdown(f"🔗 **[İlanı Aç]({detail[7]})**")
+                        st.markdown(f"🔗 **[Open Job Posting]({detail[7]})**")
                     if detail[4]:
-                        with st.expander("📄 İlan Metnini Göster", expanded=False):
+                        with st.expander("📄 Show Job Description", expanded=False):
                             import re as _re
                             from bs4 import BeautifulSoup as _BS
                             soup = _BS(str(detail[4]), "html.parser")
@@ -455,12 +444,12 @@ elif page == "📄 CV Üretilenler":
                     st.markdown("---")
                 conn.close()
 
-        # Secili ilanlar icin indirme bloklari
+        # Download blocks for selected jobs
         if selected_ids:
             from matching.cv_generator import _build_filename
 
             st.divider()
-            st.markdown("**📥 İndir:**")
+            st.markdown("**📥 Download:**")
 
             static_dir = Path("static/cv")
 
@@ -493,7 +482,7 @@ elif page == "📄 CV Üretilenler":
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             key=f"dl_cv_docx_{jid}", use_container_width=True)
                 else:
-                    c1.caption("CV DOCX yok")
+                    c1.caption("CV DOCX missing")
 
                 if cv_pdf_path.exists():
                     with open(cv_pdf_path, "rb") as f:
@@ -502,7 +491,7 @@ elif page == "📄 CV Üretilenler":
                             mime="application/pdf",
                             key=f"dl_cv_pdf_{jid}", use_container_width=True)
                 else:
-                    c2.caption("CV PDF yok")
+                    c2.caption("CV PDF missing")
 
                 if cl_docx_path.exists():
                     with open(cl_docx_path, "rb") as f:
@@ -511,7 +500,7 @@ elif page == "📄 CV Üretilenler":
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             key=f"dl_cl_docx_{jid}", use_container_width=True)
                 else:
-                    c3.caption("CL DOCX yok")
+                    c3.caption("CL DOCX missing")
 
                 if cl_pdf_path.exists():
                     with open(cl_pdf_path, "rb") as f:
@@ -520,13 +509,13 @@ elif page == "📄 CV Üretilenler":
                             mime="application/pdf",
                             key=f"dl_cl_pdf_{jid}", use_container_width=True)
                 else:
-                    c4.caption("CL PDF yok")
+                    c4.caption("CL PDF missing")
 
                 st.markdown("")
 
             st.divider()
 
-        if st.button("✅ Seçilenleri Başvuruldu İşaretle",
+        if st.button("✅ Mark Selected as Applied",
                      disabled=not selected_ids, type="primary"):
             from datetime import datetime as _dt
             now = _dt.now().strftime("%Y-%m-%d %H:%M")
@@ -537,29 +526,30 @@ elif page == "📄 CV Üretilenler":
             )
             conn.commit()
             conn.close()
-            st.success(f"{len(selected_ids)} ilan başvuruldu olarak işaretlendi.")
+            st.success(f"{len(selected_ids)} jobs marked as applied.")
             st.rerun()
 
+
 # ============================================================
-# SAYFA 3 — BAŞVURULANLAR
+# PAGE 3 - APPLIED
 # ============================================================
-elif page == "✅ Başvurulanlar":
-    st.subheader("✅ Başvurulan İlanlar")
-    st.caption("Başvurduğun ilanlar. Yanlışlıkla işaretlediysen geri alabilirsin.")
+elif page == "✅ Applied":
+    st.subheader("✅ Applied Jobs")
+    st.caption("Jobs you have applied to. You can undo if you marked one by mistake.")
 
     conn = get_connection()
     applied_rows = conn.execute("""
         SELECT
             j.job_id as id,
-            j.job_title as Pozisyon,
-            j.company as Şirket,
-            j.location as Konum,
+            j.job_title as Position,
+            j.company as Company,
+            j.location as Location,
             j.match_category as Match,
-            j.priority as Öncelik,
-            COALESCE(d.updated_at, d.created_at, '') as [CV Tarihi],
-            COALESCE(j.applied_at, '') as [Başvuru Tarihi],
-            COALESCE(j.application_status, '') as [Durum],
-            (SELECT COUNT(*) FROM application_emails ae WHERE ae.job_id = j.job_id) as [Yanit]
+            j.priority as Priority,
+            COALESCE(d.updated_at, d.created_at, '') as [CV Date],
+            COALESCE(j.applied_at, '') as [Applied Date],
+            COALESCE(j.application_status, '') as [Status],
+            (SELECT COUNT(*) FROM application_emails ae WHERE ae.job_id = j.job_id) as [Replies]
         FROM jobs j
         LEFT JOIN job_documents d ON d.job_id = j.job_id
         WHERE j.is_applied = 1
@@ -569,22 +559,22 @@ elif page == "✅ Başvurulanlar":
     conn.close()
 
     if not applied_rows:
-        st.info("Henüz başvurulan ilan yok.")
+        st.info("No applied jobs yet.")
     else:
         df_applied = pd.DataFrame(
             [list(r) for r in applied_rows],
-            columns=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik", "CV Tarihi", "Başvuru Tarihi", "Durum", "Yanit"]
+            columns=["id", "Position", "Company", "Location", "Match", "Priority", "CV Date", "Applied Date", "Status", "Replies"]
         )
-        df_applied["CV Tarihi"] = df_applied["CV Tarihi"].astype(str).str[:16].str.replace("T", " ")
-        df_applied["Uzaklık"] = df_applied["Konum"].apply(lambda x: format_distance(get_distance(x)))
+        df_applied["CV Date"] = df_applied["CV Date"].astype(str).str[:16].str.replace("T", " ")
+        df_applied["Distance"] = df_applied["Location"].apply(lambda x: format_distance(get_distance(x)))
 
-        # Durum ikonlari
-        icons = {"interview": "📞 Mülakat", "rejection": "❌ Ret", "offer": "🎉 Teklif", "info": "ℹ️ Bilgi"}
-        df_applied["Durum"] = df_applied["Durum"].apply(lambda x: icons.get(str(x).lower(), x or "—"))
+        # Status icons
+        icons = {"interview": "📞 Interview", "rejection": "❌ Rejection", "offer": "🎉 Offer", "info": "ℹ️ Info"}
+        df_applied["Status"] = df_applied["Status"].apply(lambda x: icons.get(str(x).lower(), x or "—"))
 
-        df_applied = df_applied[["id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Match", "Öncelik", "Durum", "Yanit", "CV Tarihi", "Başvuru Tarihi"]]
-        df_applied.insert(0, "Seç", False)
-        df_applied = df_applied[["Seç", "CV Tarihi", "Başvuru Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Durum", "Yanit", "Öncelik"]]
+        df_applied = df_applied[["id", "Position", "Company", "Location", "Distance", "Match", "Priority", "Status", "Replies", "CV Date", "Applied Date"]]
+        df_applied.insert(0, "Select", False)
+        df_applied = df_applied[["Select", "CV Date", "Applied Date", "Match", "id", "Position", "Company", "Location", "Distance", "Status", "Replies", "Priority"]]
 
         edited_applied = st.data_editor(
             df_applied,
@@ -592,34 +582,34 @@ elif page == "✅ Başvurulanlar":
             hide_index=True,
             height=min(400, 60 + 35 * len(df_applied)),
             column_config={
-                "Seç": st.column_config.CheckboxColumn("Seç", default=False, width=40),
-                "CV Tarihi": st.column_config.TextColumn("CV Tarihi", disabled=True, width=130),
-                "Başvuru Tarihi": st.column_config.TextColumn("Başvuru Tarihi", disabled=True, width=130),
+                "Select": st.column_config.CheckboxColumn("Select", default=False, width=40),
+                "CV Date": st.column_config.TextColumn("CV Date", disabled=True, width=130),
+                "Applied Date": st.column_config.TextColumn("Applied Date", disabled=True, width=130),
                 "Match": st.column_config.TextColumn("Match", disabled=True, width=110),
                 "id": st.column_config.NumberColumn("ID", disabled=True, width=50),
-                "Pozisyon": st.column_config.TextColumn("Pozisyon", disabled=True, width=220),
-                "Şirket": st.column_config.TextColumn("Şirket", disabled=True, width=140),
-                "Konum": st.column_config.TextColumn("Konum", disabled=True, width=120),
-                "Uzaklık": st.column_config.TextColumn("Uzaklık", disabled=True, width=80),
-                "Durum": st.column_config.TextColumn("Durum", disabled=True, width=110),
-                "Yanit": st.column_config.NumberColumn("📬", disabled=True, width=50),
-                "Öncelik": st.column_config.TextColumn("Öncelik", disabled=True, width=70),
+                "Position": st.column_config.TextColumn("Position", disabled=True, width=220),
+                "Company": st.column_config.TextColumn("Company", disabled=True, width=140),
+                "Location": st.column_config.TextColumn("Location", disabled=True, width=120),
+                "Distance": st.column_config.TextColumn("Distance", disabled=True, width=80),
+                "Status": st.column_config.TextColumn("Status", disabled=True, width=110),
+                "Replies": st.column_config.NumberColumn("📬", disabled=True, width=50),
+                "Priority": st.column_config.TextColumn("Priority", disabled=True, width=70),
             },
-            disabled=["CV Tarihi", "Başvuru Tarihi", "Match", "id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "Durum", "Yanit", "Öncelik"],
+            disabled=["CV Date", "Applied Date", "Match", "id", "Position", "Company", "Location", "Distance", "Status", "Replies", "Priority"],
             key="applied_editor",
         )
 
-        selected_ids = edited_applied[edited_applied["Seç"] == True]["id"].tolist()
+        selected_ids = edited_applied[edited_applied["Select"] == True]["id"].tolist()
 
         if len(selected_ids) > 1:
             selected_ids = [selected_ids[-1]]
 
-        st.caption(f"Seçili: **{len(selected_ids)}** ilan")
+        st.caption(f"Selected: **{len(selected_ids)}** jobs")
 
-        # Secili ilanlarin detayini goster
+        # Show details of selected jobs
         if selected_ids:
             st.divider()
-            with st.expander(f"📋 Seçili İlan Detayı ({len(selected_ids)} ilan)", expanded=True):
+            with st.expander(f"📋 Selected Job Details ({len(selected_ids)} jobs)", expanded=True):
                 conn = get_connection()
                 for jid in selected_ids:
                     jid = int(jid)
@@ -635,11 +625,11 @@ elif page == "✅ Başvurulanlar":
                     if not detail:
                         continue
                     st.markdown(f"### {detail[2]} — {detail[1]}")
-                    st.caption(f"ID: {detail[0]} | {detail[3]} | Match: {detail[5]} | Öncelik: {detail[6]} | Kaynak: {detail[8]}")
+                    st.caption(f"ID: {detail[0]} | {detail[3]} | Match: {detail[5]} | Priority: {detail[6]} | Source: {detail[8]}")
                     if detail[7]:
-                        st.markdown(f"🔗 **[İlanı Aç]({detail[7]})**")
+                        st.markdown(f"🔗 **[Open Job Posting]({detail[7]})**")
                     if detail[4]:
-                        with st.expander("📄 İlan Metnini Göster", expanded=False):
+                        with st.expander("📄 Show Job Description", expanded=False):
                             import re as _re
                             from bs4 import BeautifulSoup as _BS
                             soup = _BS(str(detail[4]), "html.parser")
@@ -652,7 +642,7 @@ elif page == "✅ Başvurulanlar":
                             text = _re.sub(r"\n{3,}", "\n\n", text)
                             st.markdown(text.strip())
 
-                    # Bu ilana gelen yanitlar
+                    # Responses for this job
                     conn2 = get_connection()
                     responses = conn2.execute("""
                         SELECT sender, subject, category, confidence, reason, received_at
@@ -663,7 +653,7 @@ elif page == "✅ Başvurulanlar":
                     conn2.close()
 
                     if responses:
-                        st.markdown("**📬 Bu ilana gelen yanıtlar:**")
+                        st.markdown("**📬 Responses for this job:**")
                         icons2 = {"interview": "📞", "rejection": "❌", "offer": "🎉", "info": "ℹ️"}
                         for resp in responses:
                             sender, subject, category, confidence, reason, received_at = resp
@@ -675,12 +665,12 @@ elif page == "✅ Başvurulanlar":
                             if reason:
                                 st.caption(f"  💭 {reason}")
                     else:
-                        st.caption("📭 Bu ilana henüz yanıt gelmedi.")
+                        st.caption("📭 No responses for this job yet.")
 
                     st.markdown("---")
                 conn.close()
 
-        if st.button("↩️ Başvuruyu Geri Al", disabled=not selected_ids):
+        if st.button("↩️ Undo Application", disabled=not selected_ids):
             conn = get_connection()
             conn.executemany(
                 "UPDATE jobs SET is_applied = 0, applied_at = NULL WHERE job_id = ?",
@@ -688,11 +678,11 @@ elif page == "✅ Başvurulanlar":
             )
             conn.commit()
             conn.close()
-            st.success("Basvuru geri alindi.")
+            st.success("Application undone.")
             st.rerun()
 
         st.divider()
-        st.markdown("**📥 İndir:**")
+        st.markdown("**📥 Download:**")
         from matching.cv_generator import (
             generate_docx_bytes,
             generate_pdf_bytes,
@@ -730,7 +720,7 @@ elif page == "✅ Başvurulanlar":
                         file_name=f"{cv_name}.pdf", mime="application/pdf",
                         key=f"a_cv_pdf_{jid}", use_container_width=True)
                 except Exception as e:
-                    st.warning(f"CV hata: {e}")
+                    st.warning(f"CV error: {e}")
                 try:
                     cover_docx = generate_docx_bytes(cover_md or "")
                     col3.download_button("📥 CL DOCX", data=cover_docx,
@@ -742,25 +732,25 @@ elif page == "✅ Başvurulanlar":
                         file_name=f"{cover_name}.pdf", mime="application/pdf",
                         key=f"a_cl_pdf_{jid}", use_container_width=True)
                 except Exception as e:
-                    st.warning(f"CL hata: {e}")
+                    st.warning(f"CL error: {e}")
 
 
 # ============================================================
-# SAYFA 4 — GİZLENENLER
+# PAGE 4 - HIDDEN
 # ============================================================
-elif page == "🗑️ Gizlenen":
-    st.subheader("🗑️ Gizlenen İlanlar")
-    st.caption("Sildiğin ilanlar. Yanlışlıkla sildiysen geri alabilirsin.")
+elif page == "🗑️ Hidden":
+    st.subheader("🗑️ Hidden Jobs")
+    st.caption("Jobs you deleted. You can restore them if deleted by mistake.")
 
     conn = get_connection()
     hidden_rows = conn.execute("""
         SELECT
             j.job_id as id,
-            j.job_title as Pozisyon,
-            j.company as Şirket,
-            j.location as Konum,
+            j.job_title as Position,
+            j.company as Company,
+            j.location as Location,
             j.match_category as Match,
-            j.priority as Öncelik
+            j.priority as Priority
         FROM jobs j
         WHERE j.is_hidden = 1
         ORDER BY j.job_id DESC
@@ -769,13 +759,13 @@ elif page == "🗑️ Gizlenen":
     conn.close()
 
     if not hidden_rows:
-        st.info("Gizlenen ilan yok.")
+        st.info("No hidden jobs.")
     else:
         df_hidden = pd.DataFrame(
             [list(r) for r in hidden_rows],
-            columns=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik"]
+            columns=["id", "Position", "Company", "Location", "Match", "Priority"]
         )
-        df_hidden.insert(0, "Seç", False)
+        df_hidden.insert(0, "Select", False)
 
         edited_hidden = st.data_editor(
             df_hidden,
@@ -783,21 +773,21 @@ elif page == "🗑️ Gizlenen":
             hide_index=True,
             height=min(400, 60 + 35 * len(df_hidden)),
             column_config={
-                "Seç": st.column_config.CheckboxColumn("Seç", default=False),
+                "Select": st.column_config.CheckboxColumn("Select", default=False),
                 "id": st.column_config.NumberColumn("ID", disabled=True, width="small"),
             },
-            disabled=["id", "Pozisyon", "Şirket", "Konum", "Match", "Öncelik"],
+            disabled=["id", "Position", "Company", "Location", "Match", "Priority"],
             key="hidden_editor",
         )
 
-        selected_ids = edited_hidden[edited_hidden["Seç"] == True]["id"].tolist()
+        selected_ids = edited_hidden[edited_hidden["Select"] == True]["id"].tolist()
 
         if len(selected_ids) > 1:
             selected_ids = [selected_ids[-1]]
 
-        st.caption(f"Seçili: **{len(selected_ids)}** ilan")
+        st.caption(f"Selected: **{len(selected_ids)}** jobs")
 
-        if st.button("↩️ Geri Getir", disabled=not selected_ids):
+        if st.button("↩️ Restore", disabled=not selected_ids):
             conn = get_connection()
             conn.executemany(
                 "UPDATE jobs SET is_hidden = 0 WHERE job_id = ?",
@@ -805,45 +795,45 @@ elif page == "🗑️ Gizlenen":
             )
             conn.commit()
             conn.close()
-            st.success("Ilan geri getirildi.")
+            st.success("Job restored.")
             st.rerun()
 
 
 # ============================================================
-# SAYFA 5 — MANUEL İLAN
+# PAGE 5 - MANUAL JOB
 # ============================================================
-elif page == "✍️ Manuel İlan":
-    st.subheader("✍️ Manuel İlan Ekle")
-    st.caption("LinkedIn, Indeed veya şirket sitesinden bulduğun ilanlar için CV + Cover Letter üret.")
+elif page == "✍️ Manual Job":
+    st.subheader("✍️ Add Manual Job")
+    st.caption("Generate CV + Cover Letter for jobs found on LinkedIn, Indeed, or company sites.")
 
     with st.form("manual_job_form", clear_on_submit=False):
         col1, col2 = st.columns(2)
         with col1:
-            url = st.text_input("İlan URL *", placeholder="https://...")
-            position = st.text_input("Pozisyon *", placeholder="Business Operations Specialist")
+            url = st.text_input("Job URL *", placeholder="https://...")
+            position = st.text_input("Position *", placeholder="Business Operations Specialist")
         with col2:
-            company = st.text_input("Şirket *", placeholder="Acme B.V.")
-            location = st.text_input("Konum", placeholder="Amsterdam")
+            company = st.text_input("Company *", placeholder="Acme B.V.")
+            location = st.text_input("Location", placeholder="Amsterdam")
 
         description = st.text_area(
-            "İlan Metni *",
-            placeholder="İlan açıklamasını buraya yapıştır...",
+            "Job Description *",
+            placeholder="Paste the job description here...",
             height=300,
         )
 
-        submitted = st.form_submit_button("✍️ CV + Cover Letter Üret", type="primary")
+        submitted = st.form_submit_button("✍️ Generate CV + Cover Letter", type="primary")
 
     if submitted:
-        # Validasyon
+        # Validation
         errors = []
         if not url or not url.strip():
-            errors.append("URL zorunlu")
+            errors.append("URL is required")
         if not position or not position.strip():
-            errors.append("Pozisyon zorunlu")
+            errors.append("Position is required")
         if not company or not company.strip():
-            errors.append("Şirket zorunlu")
+            errors.append("Company is required")
         if not description or not description.strip():
-            errors.append("İlan metni zorunlu")
+            errors.append("Job description is required")
 
         if errors:
             for err in errors:
@@ -855,7 +845,7 @@ elif page == "✍️ Manuel İlan":
             location = location.strip() if location else ""
             description = description.strip()
 
-            # URL havuzda var mi kontrolu
+            # Check if URL already in pool
             conn = get_connection()
             existing = conn.execute("""
                 SELECT j.job_id, j.job_title, j.company
@@ -868,14 +858,14 @@ elif page == "✍️ Manuel İlan":
 
             if existing:
                 st.warning(
-                    f"⚠️ Bu URL zaten Havuz'da: **[ID={existing[0]}] {existing[2]} — {existing[1]}**"
+                    f"⚠️ This URL is already in Pool: **[ID={existing[0]}] {existing[2]} — {existing[1]}**"
                 )
                 st.info(
-                    "Aşağıdaki butonu kullanarak bu manuel ilanı yine de ekleyebilirsin. "
-                    "Havuz'daki eski kaydı silmek için Gizlenen sayfasını kullan."
+                    "You can still add this manual job using the button below. "
+                    "Use the Hidden page to delete the old record from the Pool."
                 )
 
-            # Session state'e kaydet
+            # Save to session state
             st.session_state["manual_pending"] = {
                 "url": url,
                 "position": position,
@@ -886,7 +876,7 @@ elif page == "✍️ Manuel İlan":
             }
             st.rerun()
 
-    # Bekleyen manuel ilan varsa uret
+    # Generate pending manual job
     if "manual_pending" in st.session_state:
         pending = st.session_state["manual_pending"]
 
@@ -896,8 +886,8 @@ elif page == "✍️ Manuel İlan":
 
         col_a, col_b = st.columns([1, 3])
         with col_a:
-            if st.button("✍️ CV Üret", type="primary"):
-                with st.spinner("CV üretiliyor... (~2 dk)"):
+            if st.button("✍️ Generate CV", type="primary"):
+                with st.spinner("Generating CV... (~2 min)"):
                     try:
                         from matching.cv_generator import (
                             generate_cv_and_cover_letter,
@@ -907,19 +897,19 @@ elif page == "✍️ Manuel İlan":
                         from data.database import get_connection as _gc
                         from datetime import datetime as _dt
 
-                        # job_id olustur: mevcut max + 1
+                        # Create job_id: max + 1
                         conn = _gc()
                         max_id = conn.execute("SELECT COALESCE(MAX(job_id), 0) FROM jobs").fetchone()[0]
                         new_id = max_id + 1
 
-                        # jobs tablosuna ekle
+                        # Insert into jobs
                         conn.execute("""
                             INSERT INTO jobs (
                                 job_id, job_title, company, location,
                                 job_description, match_category, priority,
                                 posted_date, date_found
                             )
-                            VALUES (?, ?, ?, ?, ?, 'Manuel', 'High', ?, ?)
+                            VALUES (?, ?, ?, ?, ?, 'Manual', 'High', ?, ?)
                         """, (
                             new_id,
                             pending["position"],
@@ -930,12 +920,12 @@ elif page == "✍️ Manuel İlan":
                             _dt.now().strftime("%Y-%m-%d %H:%M"),
                         ))
 
-                        # job_sources'a ekle
+                        # Insert into job_sources
                         conn.execute("""
                             INSERT INTO job_sources (
                                 job_id, source, source_url, date_found, is_primary
                             )
-                            VALUES (?, 'Manuel', ?, ?, 1)
+                            VALUES (?, 'Manual', ?, ?, 1)
                         """, (
                             new_id,
                             pending["url"],
@@ -944,7 +934,7 @@ elif page == "✍️ Manuel İlan":
                         conn.commit()
                         conn.close()
 
-                        # CV uret
+                        # Generate CV
                         job = {
                             "job_id": new_id,
                             "job_title": pending["position"],
@@ -957,26 +947,26 @@ elif page == "✍️ Manuel İlan":
                         cover_text = result.get("cover_letter", "")
 
                         if not cv_text:
-                            raise RuntimeError("LLM bos CV dondurdu")
+                            raise RuntimeError("LLM returned empty CV")
 
                         save_documents_to_db(new_id, cv_text, cover_text)
                         save_files_to_disk(new_id, pending["company"], pending["position"])
 
-                        st.success(f"✅ CV üretildi (ID={new_id})")
+                        st.success(f"✅ CV generated (ID={new_id})")
                         del st.session_state["manual_pending"]
                         st.rerun()
 
                     except Exception as e:
-                        st.error(f"Hata: {e}")
+                        st.error(f"Error: {e}")
 
         with col_b:
-            if st.button("❌ İptal"):
+            if st.button("❌ Cancel"):
                 del st.session_state["manual_pending"]
                 st.rerun()
 
-    # Manuel ilanlarin listesi
+    # List of manual jobs
     st.divider()
-    st.subheader("📁 Eklenmiş Manuel İlanlar")
+    st.subheader("📁 Added Manual Jobs")
 
     conn = get_connection()
     manual_rows = conn.execute("""
@@ -990,23 +980,23 @@ elif page == "✍️ Manuel İlan":
         FROM jobs j
         LEFT JOIN job_sources s ON s.job_id = j.job_id AND s.is_primary = 1
         LEFT JOIN job_documents d ON d.job_id = j.job_id
-        WHERE j.match_category = 'Manuel'
+        WHERE j.match_category = 'Manual'
           AND j.is_hidden = 0
         ORDER BY j.job_id DESC
     """).fetchall()
     conn.close()
 
     if not manual_rows:
-        st.info("Henüz manuel ilan eklenmemiş.")
+        st.info("No manual jobs added yet.")
     else:
         df_manual = pd.DataFrame(
             [list(r) for r in manual_rows],
-            columns=["id", "Pozisyon", "Şirket", "Konum", "URL", "CV Tarihi"]
+            columns=["id", "Position", "Company", "Location", "URL", "CV Date"]
         )
-        df_manual["CV Tarihi"] = df_manual["CV Tarihi"].astype(str).str[:16].str.replace("T", " ")
-        df_manual["Uzaklık"] = df_manual["Konum"].apply(lambda x: format_distance(get_distance(x)) if x else "?")
-        df_manual = df_manual[["id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "URL", "CV Tarihi"]]
-        df_manual.insert(0, "Seç", False)
+        df_manual["CV Date"] = df_manual["CV Date"].astype(str).str[:16].str.replace("T", " ")
+        df_manual["Distance"] = df_manual["Location"].apply(lambda x: format_distance(get_distance(x)) if x else "?")
+        df_manual = df_manual[["id", "Position", "Company", "Location", "Distance", "URL", "CV Date"]]
+        df_manual.insert(0, "Select", False)
 
         edited_manual = st.data_editor(
             df_manual,
@@ -1014,27 +1004,27 @@ elif page == "✍️ Manuel İlan":
             hide_index=True,
             height=min(400, 60 + 35 * len(df_manual)),
             column_config={
-                "Seç": st.column_config.CheckboxColumn("Seç", default=False, width=40),
+                "Select": st.column_config.CheckboxColumn("Select", default=False, width=40),
                 "id": st.column_config.NumberColumn("ID", disabled=True, width=50),
-                "Pozisyon": st.column_config.TextColumn("Pozisyon", disabled=True, width=200),
-                "Şirket": st.column_config.TextColumn("Şirket", disabled=True, width=140),
-                "Konum": st.column_config.TextColumn("Konum", disabled=True, width=120),
-                "Uzaklık": st.column_config.TextColumn("Uzaklık", disabled=True, width=80),
-                "URL": st.column_config.LinkColumn("URL", disabled=True, width=200, display_text="🔗 Aç"),
-                "CV Tarihi": st.column_config.TextColumn("CV Tarihi", disabled=True, width=130),
+                "Position": st.column_config.TextColumn("Position", disabled=True, width=200),
+                "Company": st.column_config.TextColumn("Company", disabled=True, width=140),
+                "Location": st.column_config.TextColumn("Location", disabled=True, width=120),
+                "Distance": st.column_config.TextColumn("Distance", disabled=True, width=80),
+                "URL": st.column_config.LinkColumn("URL", disabled=True, width=200, display_text="🔗 Open"),
+                "CV Date": st.column_config.TextColumn("CV Date", disabled=True, width=130),
             },
-            disabled=["id", "Pozisyon", "Şirket", "Konum", "Uzaklık", "URL", "CV Tarihi"],
+            disabled=["id", "Position", "Company", "Location", "Distance", "URL", "CV Date"],
             key="manual_editor",
         )
 
-        selected_ids = edited_manual[edited_manual["Seç"] == True]["id"].tolist()
+        selected_ids = edited_manual[edited_manual["Select"] == True]["id"].tolist()
 
         if len(selected_ids) > 1:
             selected_ids = [selected_ids[-1]]
 
-        st.caption(f"Seçili: **{len(selected_ids)}** ilan")
+        st.caption(f"Selected: **{len(selected_ids)}** jobs")
 
-        # Indirme butonlari
+        # Download buttons
         if len(selected_ids) == 1:
             jid = int(selected_ids[0])
             row = next((r for r in manual_rows if r[0] == jid), None)
@@ -1044,7 +1034,7 @@ elif page == "✍️ Manuel İlan":
                 from pathlib import Path as _P
 
                 st.divider()
-                st.markdown(f"**Seçili:** {company} — {title}")
+                st.markdown(f"**Selected:** {company} — {title}")
 
                 c1, c2, c3, c4 = st.columns(4)
                 static_dir = _P("static/cv")
@@ -1064,11 +1054,11 @@ elif page == "✍️ Manuel İlan":
                                 file_name=path, mime=mime,
                                 key=f"manual_dl_{path}", use_container_width=True)
                     else:
-                        col.caption(f"{label} yok")
+                        col.caption(f"{label} missing")
 
-        # Silme
+        # Delete
         if selected_ids:
-            if st.button("🗑️ Seçilen Manuel İlanı Sil", disabled=not selected_ids):
+            if st.button("🗑️ Delete Selected Manual Job", disabled=not selected_ids):
                 conn = get_connection()
                 jid = int(selected_ids[0])
                 for table in ["job_documents", "job_matches", "job_match_queue", "job_sources"]:
@@ -1077,25 +1067,27 @@ elif page == "✍️ Manuel İlan":
                 conn.commit()
                 conn.close()
 
-                # Disk dosyalarini sil
+                # Delete disk files
                 from pathlib import Path as _P2
                 for f in _P2("static/cv").glob(f"{jid}_*"):
                     f.unlink()
 
-                st.success(f"Manuel ilan (ID={jid}) silindi.")
+                st.success(f"Manual job (ID={jid}) deleted.")
                 st.rerun()
 
 
 # ============================================================
-# SAYFA 6 — YANITLAR
+
 # ============================================================
-elif page == "📬 Yanıtlar":
-    st.subheader("📬 Başvuru Yanıtları")
-    st.caption("Gmail'den otomatik olarak çekilen başvuru yanıtları.")
+# PAGE 6 - RESPONSES
+# ============================================================
+elif page == "📬 Responses":
+    st.subheader("📬 Application Responses")
+    st.caption("Application responses pulled automatically from Gmail.")
 
     col1, col2 = st.columns([1, 3])
     with col1:
-        if st.button("🔄 Sheets'ten Sync Et", type="primary"):
+        if st.button("🔄 Sync from Sheets", type="primary"):
             try:
                 import sys as _sys
                 from pathlib import Path as _P
@@ -1105,22 +1097,22 @@ elif page == "📬 Yanıtlar":
                 load_dotenv(_P.home() / "job-agent" / ".env")
 
                 from integrations.gmail_tracker import sync_sheet_to_db
-                with st.spinner("Sheets okunuyor, LLM sınıflandırıyor... (~30 sn)"):
+                with st.spinner("Reading Sheets, classifying with LLM... (~30 sec)"):
                     stats = sync_sheet_to_db(verbose=False)
                 st.success(
-                    f"Sync tamamlandı: "
-                    f"{stats['new']} yeni, "
-                    f"{stats['classified']} sınıflandırıldı, "
-                    f"{stats['matched']} eşleşti"
+                    f"Sync complete: "
+                    f"{stats['new']} new, "
+                    f"{stats['classified']} classified, "
+                    f"{stats['matched']} matched"
                 )
                 st.rerun()
             except Exception as e:
-                st.error(f"Sync hatası: {e}")
+                st.error(f"Sync error: {e}")
 
     with col2:
         st.caption(
-            "💡 **Nasıl çalışır:** Gmail → Make.com → Google Sheets → bu sayfa. "
-            "Yeni mailler geldiğinde **Sync Et** butonuna bas."
+            "💡 **How it works:** Gmail → Make.com → Google Sheets → this page. "
+            "Click **Sync** when new emails arrive."
         )
 
     st.divider()
@@ -1138,15 +1130,15 @@ elif page == "📬 Yanıtlar":
     conn.close()
 
     if not rows:
-        st.info("Henüz yanıt yok. **Sync Et** butonuna bas veya Sheets'e yeni bir mail ekle.")
+        st.info("No responses yet. Click **Sync** or add a new email to the Sheet.")
     else:
         categories = sorted(set(r[3] for r in rows if r[3]))
         selected_cats = st.multiselect(
-            "Kategori filtrele", categories, default=categories,
+            "Filter by category", categories, default=categories,
         )
 
         filtered = [r for r in rows if r[3] in selected_cats]
-        st.caption(f"Toplam: **{len(filtered)}** yanıt")
+        st.caption(f"Total: **{len(filtered)}** responses")
 
         icons = {
             "interview": "📞", "rejection": "❌",
@@ -1176,10 +1168,10 @@ elif page == "📬 Yanıtlar":
                         st.caption(category.upper())
 
                 if job_id and company:
-                    st.markdown(f"🔗 **İlgili ilan:** {company} — {job_title}")
+                    st.markdown(f"🔗 **Related job:** {company} — {job_title}")
 
                 if reason:
-                    st.caption(f"💭 **LLM gerekçesi:** {reason}")
+                    st.caption(f"💭 **LLM reason:** {reason}")
 
                 if confidence:
-                    st.caption(f"🎯 Güven: {confidence:.0%}")
+                    st.caption(f"🎯 Confidence: {confidence:.0%}")
