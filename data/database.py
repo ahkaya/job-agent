@@ -1,14 +1,42 @@
-import sqlite3
+import os
 from pathlib import Path
 
+import turso
+import turso.sync
 
 DB_PATH = Path(__file__).parent / "jobs.db"
+TURSO_REMOTE_URL = os.environ.get("TURSO_SYNC_URL")
+TURSO_TOKEN = os.environ.get("TURSO_TOKEN")
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA foreign_keys = ON")
+    if TURSO_REMOTE_URL and TURSO_TOKEN:
+        # Turso Cloud sync connection (local-first)
+        conn = turso.sync.connect(
+            str(DB_PATH),
+            remote_url=TURSO_REMOTE_URL,
+            auth_token=TURSO_TOKEN,
+        )
+    else:
+        # Fallback: local SQLite file
+        conn = turso.connect(str(DB_PATH))
+
+    # NOTE: foreign key enforcement is not supported by Turso MVCC mode
+    # and is therefore intentionally omitted here. Application-level
+    # integrity is maintained by job-agent's own logic.
     return conn
+
+
+
+
+def _commit_and_push(conn):
+    """Commit locally and push to Turso if connected."""
+    conn.commit()
+    try:
+        if hasattr(conn, "push"):
+            conn.push()
+    except Exception:
+        pass  # offline fallback
 
 
 def create_tables():
@@ -251,7 +279,7 @@ def create_tables():
         ON gemini_request_log (request_date, request_id)
     """)
 
-    conn.commit()
+    _commit_and_push(conn)
     conn.close()
 
 
@@ -308,7 +336,7 @@ def update_existing_job(
             job_id,
             job,
         )
-        conn.commit()
+        _commit_and_push(conn)
     finally:
         conn.close()
 
@@ -545,7 +573,7 @@ def insert_collected_job(job):
                 source_exists[0],
             ))
 
-        conn.commit()
+        _commit_and_push(conn)
         conn.close()
 
         return existing_job_id, False
@@ -605,7 +633,7 @@ def insert_collected_job(job):
         ),
     )
 
-    conn.commit()
+    _commit_and_push(conn)
     conn.close()
 
     return job_id, True

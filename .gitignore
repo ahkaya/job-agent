@@ -60,3 +60,9 @@ config/gcp_service_account.json
 
 # Streamlit skills
 .agents/
+
+# pyturso sync metadata
+data/jobs.db-changes
+data/jobs.db-info
+data/jobs.db-shm
+data/jobs.db-wal
