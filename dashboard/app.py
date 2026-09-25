@@ -23,7 +23,7 @@ if "page" not in st.session_state:
 with st.sidebar:
     st.header("⚙️ Control Panel")
 
-    if st.button("🔍 Fetch & Match New Jobs", type="primary", use_container_width=True):
+    if st.button("🔍 Fetch & Match New Jobs", type="primary", width="stretch"):
         with st.spinner("Collecting and matching... (a few minutes)"):
             result = subprocess.run(
                 [sys.executable, "main.py"],
@@ -61,7 +61,7 @@ with st.sidebar:
     def _btn(label, key, target):
         is_active = current == target
         style = "primary" if is_active else "secondary"
-        if st.button(label, key=key, use_container_width=True, type=style):
+        if st.button(label, key=key, width="stretch", type=style):
             st.session_state["page"] = target
             st.rerun()
 
@@ -206,7 +206,7 @@ if page == "📋 Pool":
 
     edited = st.data_editor(
         pool_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=400,
         column_config={
@@ -280,7 +280,7 @@ if page == "📋 Pool":
     col_a, col_b = st.columns(2)
 
     with col_a:
-        if st.button("🗑️ Delete Selected", disabled=not selected_ids, use_container_width=True):
+        if st.button("🗑️ Delete Selected", disabled=not selected_ids, width="stretch"):
             conn = get_connection()
             conn.executemany(
                 "UPDATE jobs SET is_hidden = 1 WHERE job_id = ?",
@@ -292,7 +292,7 @@ if page == "📋 Pool":
             st.rerun()
 
     with col_b:
-        if st.button("✍️ Generate CVs for Selected", type="primary", disabled=not selected_ids, use_container_width=True):
+        if st.button("✍️ Generate CVs for Selected", type="primary", disabled=not selected_ids, width="stretch"):
             from matching.cv_generator import (
                 generate_cv_and_cover_letter,
                 save_documents_to_db,
@@ -385,7 +385,7 @@ elif page == "📄 Generated CVs":
 
         edited_cv = st.data_editor(
             df_cv,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=min(400, 60 + 35 * len(df_cv)),
             column_config={
@@ -480,7 +480,7 @@ elif page == "📄 Generated CVs":
                         c1.download_button("📥 CV DOCX", data=f.read(),
                             file_name=f"{cv_name}.docx",
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            key=f"dl_cv_docx_{jid}", use_container_width=True)
+                            key=f"dl_cv_docx_{jid}", width="stretch")
                 else:
                     c1.caption("CV DOCX missing")
 
@@ -489,7 +489,7 @@ elif page == "📄 Generated CVs":
                         c2.download_button("📥 CV PDF", data=f.read(),
                             file_name=f"{cv_name}.pdf",
                             mime="application/pdf",
-                            key=f"dl_cv_pdf_{jid}", use_container_width=True)
+                            key=f"dl_cv_pdf_{jid}", width="stretch")
                 else:
                     c2.caption("CV PDF missing")
 
@@ -498,7 +498,7 @@ elif page == "📄 Generated CVs":
                         c3.download_button("📥 CL DOCX", data=f.read(),
                             file_name=f"{cover_name}.docx",
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            key=f"dl_cl_docx_{jid}", use_container_width=True)
+                            key=f"dl_cl_docx_{jid}", width="stretch")
                 else:
                     c3.caption("CL DOCX missing")
 
@@ -507,13 +507,96 @@ elif page == "📄 Generated CVs":
                         c4.download_button("📥 CL PDF", data=f.read(),
                             file_name=f"{cover_name}.pdf",
                             mime="application/pdf",
-                            key=f"dl_cl_pdf_{jid}", use_container_width=True)
+                            key=f"dl_cl_pdf_{jid}", width="stretch")
                 else:
                     c4.caption("CL PDF missing")
 
                 st.markdown("")
 
             st.divider()
+
+        # Apply with Autofill button
+        if st.button("🚀 Apply with Autofill",
+                     disabled=not selected_ids or len(selected_ids) != 1,
+                     width="stretch"):
+            jid = int(selected_ids[0])
+            conn = get_connection()
+            row = conn.execute("""
+                SELECT j.job_title, j.company, j.job_description,
+                       COALESCE(s.source_url, '') as url
+                FROM jobs j
+                LEFT JOIN job_sources s ON s.job_id = j.job_id AND s.is_primary = 1
+                WHERE j.job_id = ?
+            """, (jid,)).fetchone()
+            conn.close()
+
+            if not row or not row[3]:
+                st.error("❌ No application URL found for this job.")
+            else:
+                url = row[3]
+                supported = any(
+                    host in url.lower()
+                    for host in ("greenhouse.io", "lever.co", "ashbyhq.com")
+                )
+                if not supported:
+                    st.warning(
+                        "⚠️ **Autofill is currently supported only for Greenhouse, "
+                        "Lever, and Ashby ATS platforms.**\n\n"
+                        f"This job is hosted on a different platform: `{url}`\n\n"
+                        "Please apply manually via the job URL."
+                    )
+                    st.stop()
+
+                cv_pdf = Path("static/cv") / f"{jid}_cv.pdf"
+                if not cv_pdf.exists():
+                    st.error(f"❌ CV PDF not found: {cv_pdf}")
+                else:
+                    st.info("🖥️ Opening Chrome with autofilled form. Review, then click **Submit** yourself.")
+                    st.caption(f"Job: **{row[1]} — {row[0]}**")
+                    st.caption(f"URL: {row[3]}")
+                    st.caption(f"CV: `{cv_pdf}`")
+
+                    import subprocess as _sp
+                    import sys as _sys
+
+                    script = f'''
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path.home() / "job-agent-integrations"))
+
+from dotenv import load_dotenv
+load_dotenv(Path.home() / "job-agent-integrations" / ".env")
+load_dotenv(Path.home() / "job-agent" / ".env")
+
+from integrations.ai_form_filler_universal import ai_fill_form
+
+PROFILE = {{
+    "first_name": "Ahmet",
+    "last_name": "Kaya",
+    "email": "aaahmetkayaaa@gmail.com",
+    "phone": "+31 6 15034058",
+    "location": "Almelo, Netherlands",
+    "country": "Netherlands",
+    "linkedin": "",
+    "summary": (
+        "Business Operations professional with 4 years of experience "
+        "in supplier coordination, order tracking, and process automation."
+    ),
+}}
+
+result = ai_fill_form(
+    job_url={row[3]!r},
+    profile=PROFILE,
+    job_description={row[2][:5000]!r},
+    cv_path={str(cv_pdf.resolve())!r},
+    cl_path=None,
+    headless=False,
+    keep_open_seconds=600,
+)
+print("RESULT:", result.get("success"), "-", result.get("message"))
+'''
+                    _sp.Popen([_sys.executable, "-c", script])
+                    st.success("✅ Chrome is opening. Fill and submit manually.")
 
         if st.button("✅ Mark Selected as Applied",
                      disabled=not selected_ids, type="primary"):
@@ -578,7 +661,7 @@ elif page == "✅ Applied":
 
         edited_applied = st.data_editor(
             df_applied,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=min(400, 60 + 35 * len(df_applied)),
             column_config={
@@ -714,11 +797,11 @@ elif page == "✅ Applied":
                     col1.download_button("📥 CV DOCX", data=cv_docx,
                         file_name=f"{cv_name}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key=f"a_cv_docx_{jid}", use_container_width=True)
+                        key=f"a_cv_docx_{jid}", width="stretch")
                     cv_pdf = generate_pdf_bytes(cv_docx)
                     col2.download_button("📥 CV PDF", data=cv_pdf,
                         file_name=f"{cv_name}.pdf", mime="application/pdf",
-                        key=f"a_cv_pdf_{jid}", use_container_width=True)
+                        key=f"a_cv_pdf_{jid}", width="stretch")
                 except Exception as e:
                     st.warning(f"CV error: {e}")
                 try:
@@ -726,11 +809,11 @@ elif page == "✅ Applied":
                     col3.download_button("📥 CL DOCX", data=cover_docx,
                         file_name=f"{cover_name}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key=f"a_cl_docx_{jid}", use_container_width=True)
+                        key=f"a_cl_docx_{jid}", width="stretch")
                     cover_pdf = generate_pdf_bytes(cover_docx)
                     col4.download_button("📥 CL PDF", data=cover_pdf,
                         file_name=f"{cover_name}.pdf", mime="application/pdf",
-                        key=f"a_cl_pdf_{jid}", use_container_width=True)
+                        key=f"a_cl_pdf_{jid}", width="stretch")
                 except Exception as e:
                     st.warning(f"CL error: {e}")
 
@@ -769,7 +852,7 @@ elif page == "🗑️ Hidden":
 
         edited_hidden = st.data_editor(
             df_hidden,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=min(400, 60 + 35 * len(df_hidden)),
             column_config={
@@ -1000,7 +1083,7 @@ elif page == "✍️ Manual Job":
 
         edited_manual = st.data_editor(
             df_manual,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             height=min(400, 60 + 35 * len(df_manual)),
             column_config={
@@ -1052,7 +1135,7 @@ elif page == "✍️ Manual Job":
                         with open(fp, "rb") as f:
                             col.download_button(label, data=f.read(),
                                 file_name=path, mime=mime,
-                                key=f"manual_dl_{path}", use_container_width=True)
+                                key=f"manual_dl_{path}", width="stretch")
                     else:
                         col.caption(f"{label} missing")
 
