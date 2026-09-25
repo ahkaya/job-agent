@@ -573,6 +573,8 @@ from integrations.ai_form_filler_universal import ai_fill_form
 PROFILE = {{
     "first_name": "Ahmet",
     "last_name": "Kaya",
+    "company": {row[1]!r},
+    "job_title": {row[0]!r},
     "email": "aaahmetkayaaa@gmail.com",
     "phone": "+31 6 15034058",
     "location": "Almelo, Netherlands",
